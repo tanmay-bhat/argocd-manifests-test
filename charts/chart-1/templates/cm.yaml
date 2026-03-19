@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chart-1-cm
+data:
+  config-name: {{ .Values.config.name | quote }}
