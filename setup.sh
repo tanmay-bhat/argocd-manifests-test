@@ -71,7 +71,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/your-org/your-repo.git' # TODO: Update with your actual Git repo URL
+    repoURL: 'https://github.com/tanmay-bhat/argocd-manifests-test'
     targetRevision: HEAD
     path: ${CHART_DIR}
     helm:
@@ -90,4 +90,7 @@ EOF
 done
 
 echo "Successfully generated 350 ArgoCD Applications in '${APPS_FILE}'"
-echo "Note: Make sure to update 'repoURL' in the generated YAML to point to the repository where you push this Helm chart."
+
+echo "Applying ArgoCD Applications to the cluster..."
+kubectl apply -f "${APPS_FILE}" -n argocd
+echo "All done! 350 ArgoCD applications have been applied."

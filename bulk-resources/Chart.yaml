@@ -1,0 +1,6 @@
+apiVersion: v2
+name: bulk-resources
+description: A Helm chart that generates 10 ConfigMaps and 10 Secrets
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

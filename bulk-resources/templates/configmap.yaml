@@ -1,0 +1,13 @@
+{{- $relName := .Release.Name -}}
+{{- range $i, $e := until 10 }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $relName }}-configmap-{{ $i }}
+  labels:
+    app.kubernetes.io/instance: {{ $relName }}
+data:
+  resource-index: "{{ $i }}"
+  description: "ConfigMap {{ $i }} for release {{ $relName }}"
+---
+{{- end }}
