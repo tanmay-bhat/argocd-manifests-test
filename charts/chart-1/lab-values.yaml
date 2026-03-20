@@ -8,6 +8,6 @@ region: "local"
 
 # image-updater simulation
 image:
-  tag: "main-2-1773995917"
+  tag: "main-3-1773995979"
 
-# commit 2 at 2026-03-20 14:08:37
+# commit 3 at 2026-03-20 14:09:39
