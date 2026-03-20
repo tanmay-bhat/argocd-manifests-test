@@ -1,9 +1,14 @@
-## ArgoCD Helm chart values for reconciliation lab
+## ArgoCD v3.3 Helm chart values (chart 9.4.12)
 ## Chart: argo/argo-cd
 
+global:
+  logging:
+    format: "json"
+    level: "info"
+
+## Application Controller
 controller:
   logLevel: "debug"
-  logFormat: "json"
   metrics:
     enabled: true
     serviceMonitor:
@@ -11,8 +16,8 @@ controller:
       additionalLabels:
         release: "k8s"
 
+## API Server
 server:
-  logLevel: "info"
   metrics:
     enabled: true
     serviceMonitor:
@@ -20,8 +25,8 @@ server:
       additionalLabels:
         release: "k8s"
 
+## Repo Server
 repoServer:
-  logLevel: "info"
   metrics:
     enabled: true
     serviceMonitor:
@@ -29,8 +34,8 @@ repoServer:
       additionalLabels:
         release: "k8s"
 
+## ApplicationSet Controller
 applicationSet:
-  logLevel: "info"
   metrics:
     enabled: true
     serviceMonitor:
@@ -38,6 +43,7 @@ applicationSet:
       additionalLabels:
         release: "k8s"
 
+## Disable unused components
 notifications:
   enabled: false
 
