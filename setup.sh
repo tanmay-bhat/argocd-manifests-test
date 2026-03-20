@@ -11,6 +11,18 @@ echo "=== ArgoCD Reconciliation Lab Setup ==="
 echo "manifest-generate-paths annotation: ${ENABLE_MANIFEST_PATHS}"
 echo ""
 
+# --- Install ArgoCD via Helm ---
+echo "Installing ArgoCD via Helm chart..."
+helm repo add argo https://argoproj.github.io/argo-helm 2>/dev/null || true
+helm repo update argo
+
+helm upgrade --install argocd argo/argo-cd \
+  -n argocd --create-namespace \
+  -f argocd-values.yaml \
+  --wait --timeout 5m
+
+echo "ArgoCD installed."
+
 # --- Helm chart for bulk apps ---
 echo "Creating Helm chart in '${CHART_DIR}'..."
 mkdir -p "${CHART_DIR}/templates"
@@ -142,11 +154,8 @@ for i in 1 2 3 4; do
 done
 echo "All done! 354 ArgoCD applications applied."
 
-# --- Prometheus + ServiceMonitors ---
+# --- Prometheus ---
 echo ""
 echo "Installing Prometheus Operator (skip if already installed)..."
-helm install k8s oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack \
+helm upgrade --install k8s oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack \
   -n monitoring --create-namespace 2>/dev/null || echo "Prometheus stack already installed, skipping."
-
-echo "Applying ArgoCD ServiceMonitors..."
-kubectl apply -f argocd-metrics.yml
