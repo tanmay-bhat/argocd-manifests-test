@@ -1,0 +1,5 @@
+config:
+  name: "bulk-base"
+
+environment: "lab"
+region: "local"

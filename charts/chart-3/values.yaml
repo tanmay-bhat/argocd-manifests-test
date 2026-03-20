@@ -1,2 +1,18 @@
 config:
-  name: "dummy-config-3"
+  name: "chart-3-base"
+
+replicaCount: 1
+
+image:
+  repository: "nginx"
+  tag: "latest"
+
+resources:
+  requests:
+    cpu: "10m"
+    memory: "32Mi"
+  limits:
+    memory: "64Mi"
+
+environment: "lab"
+region: "local"

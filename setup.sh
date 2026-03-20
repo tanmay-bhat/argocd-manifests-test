@@ -8,7 +8,8 @@ REPO_URL="https://github.com/tanmay-bhat/argocd-manifests-test"
 ENABLE_MANIFEST_PATHS="${1:-false}"  # pass "true" as first arg to enable annotation
 
 echo "=== ArgoCD Reconciliation Lab Setup ==="
-echo "manifest-generate-paths annotation: ${ENABLE_MANIFEST_PATHS}"
+echo "manifest-generate-paths: ${ENABLE_MANIFEST_PATHS}"
+echo "argocd version: v3.3.4 (chart 9.4.12)"
 echo ""
 
 # --- Install ArgoCD via Helm ---
@@ -22,65 +23,19 @@ helm upgrade --install argocd argo/argo-cd \
   -f argocd-values.yaml \
   --wait --timeout 5m
 
-echo "ArgoCD installed."
+echo "ArgoCD v3.3.4 installed."
 
-# --- Helm chart for bulk apps ---
-echo "Creating Helm chart in '${CHART_DIR}'..."
-mkdir -p "${CHART_DIR}/templates"
-
-cat <<EOF > "${CHART_DIR}/Chart.yaml"
-apiVersion: v2
-name: bulk-resources
-description: A Helm chart that generates 10 ConfigMaps and 10 Secrets
-type: application
-version: 0.1.0
-appVersion: "1.0.0"
-EOF
-
-cat <<'EOF' > "${CHART_DIR}/templates/configmap.yaml"
-{{- $relName := .Release.Name -}}
-{{- range $i, $e := until 10 }}
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ $relName }}-configmap-{{ $i }}
-  labels:
-    app.kubernetes.io/instance: {{ $relName }}
-data:
-  resource-index: "{{ $i }}"
-  description: "ConfigMap {{ $i }} for release {{ $relName }}"
----
-{{- end }}
-EOF
-
-cat <<'EOF' > "${CHART_DIR}/templates/secret.yaml"
-{{- $relName := .Release.Name -}}
-{{- range $i, $e := until 10 }}
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{ $relName }}-secret-{{ $i }}
-  labels:
-    app.kubernetes.io/instance: {{ $relName }}
-type: Opaque
-stringData:
-  resource-index: "{{ $i }}"
-  description: "Secret {{ $i }} for release {{ $relName }}"
----
-{{- end }}
-EOF
-
-echo "Helm chart created."
-
-# --- Generate 350 bulk ArgoCD Applications ---
-echo "Generating 350 ArgoCD Application manifests..."
+# --- Generate 350 bulk ArgoCD Applications (multi-source, matching prod pattern) ---
+# Source 1: chart path (bulk-resources/)
+# Source 2: same repo with ref: values (for $values/ file references)
+echo "Generating 350 multi-source ArgoCD Application manifests..."
 mkdir -p "${APPS_DIR}"
 > "${APPS_FILE}"
 
 for i in $(seq 1 350); do
-  ANNOTATION_BLOCK=""
+  MANIFEST_PATH_ANNOTATION=""
   if [[ "${ENABLE_MANIFEST_PATHS}" == "true" ]]; then
-    ANNOTATION_BLOCK="    argocd.argoproj.io/manifest-generate-paths: '/${CHART_DIR}'"
+    MANIFEST_PATH_ANNOTATION="    argocd.argoproj.io/manifest-generate-paths: '/${CHART_DIR}'"
   fi
 
   cat <<EOF >> "${APPS_FILE}"
@@ -92,15 +47,22 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
   annotations:
-${ANNOTATION_BLOCK:-    app: "bulk-app-${i}"}
+${MANIFEST_PATH_ANNOTATION:-    app: "bulk-app-${i}"}
 spec:
   project: default
-  source:
-    repoURL: '${REPO_URL}'
-    targetRevision: HEAD
-    path: ${CHART_DIR}
-    helm:
-      releaseName: bulk-app-${i}
+  sources:
+    - repoURL: '${REPO_URL}'
+      targetRevision: HEAD
+      path: ${CHART_DIR}
+      helm:
+        releaseName: bulk-app-${i}
+        ignoreMissingValueFiles: true
+        valueFiles:
+          - '\$values/${CHART_DIR}/values.yaml'
+          - '\$values/${CHART_DIR}/lab-values.yaml'
+    - repoURL: '${REPO_URL}'
+      targetRevision: HEAD
+      ref: values
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: bulk-app-${i}-ns
@@ -114,14 +76,14 @@ spec:
 EOF
 done
 
-echo "Generated 350 ArgoCD Applications in '${APPS_FILE}'"
+echo "Generated 350 multi-source Applications in '${APPS_FILE}'"
 
-# --- Update individual app manifests (app-1 through app-4) ---
-echo "Updating individual app manifests..."
+# --- Generate individual app manifests (app-1 through app-4, multi-source) ---
+echo "Generating individual multi-source app manifests..."
 for i in 1 2 3 4; do
-  ANNOTATION_BLOCK=""
+  MANIFEST_PATH_ANNOTATION=""
   if [[ "${ENABLE_MANIFEST_PATHS}" == "true" ]]; then
-    ANNOTATION_BLOCK="  annotations:
+    MANIFEST_PATH_ANNOTATION="  annotations:
     argocd.argoproj.io/manifest-generate-paths: '/charts/chart-${i}'"
   fi
 
@@ -131,20 +93,29 @@ kind: Application
 metadata:
   name: app-${i}
   namespace: argocd
-${ANNOTATION_BLOCK}
+${MANIFEST_PATH_ANNOTATION}
 spec:
   project: default
-  source:
-    repoURL: '${REPO_URL}'
-    targetRevision: HEAD
-    path: charts/chart-${i}
+  sources:
+    - repoURL: '${REPO_URL}'
+      targetRevision: HEAD
+      path: charts/chart-${i}
+      helm:
+        releaseName: app-${i}
+        ignoreMissingValueFiles: true
+        valueFiles:
+          - '\$values/charts/chart-${i}/values.yaml'
+          - '\$values/charts/chart-${i}/lab-values.yaml'
+    - repoURL: '${REPO_URL}'
+      targetRevision: HEAD
+      ref: values
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: default
 EOF
 done
 
-echo "Individual apps updated."
+echo "Individual apps generated."
 
 # --- Apply everything ---
 echo ""
@@ -153,7 +124,7 @@ kubectl apply -f "${APPS_FILE}" -n argocd
 for i in 1 2 3 4; do
   kubectl apply -f "apps/app-${i}.yaml" -n argocd
 done
-echo "All done! 354 ArgoCD applications applied."
+echo "All done! 354 multi-source ArgoCD applications applied."
 
 # --- Prometheus ---
 echo ""

@@ -1,0 +1,7 @@
+config:
+  name: "chart-1-lab-override"
+
+replicaCount: 1
+
+environment: "lab"
+region: "local"

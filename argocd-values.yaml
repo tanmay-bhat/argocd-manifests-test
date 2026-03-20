@@ -1,4 +1,4 @@
-## ArgoCD v3.3 Helm chart values (chart 9.4.12)
+## ArgoCD v3.3.4 Helm chart values (chart 9.4.12)
 ## Chart: argo/argo-cd
 
 global:

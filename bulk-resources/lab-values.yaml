@@ -1,0 +1,5 @@
+config:
+  name: "bulk-lab-override"
+
+environment: "lab"
+region: "local"

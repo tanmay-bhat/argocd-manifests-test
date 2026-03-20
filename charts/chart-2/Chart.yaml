@@ -1,6 +1,6 @@
 apiVersion: v2
 name: chart-2
-description: A dummy Helm chart 2
+description: Lab chart simulating a prod microservice
 type: application
 version: 0.1.0
 appVersion: "1.0.0"
