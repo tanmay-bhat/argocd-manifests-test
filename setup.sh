@@ -94,3 +94,9 @@ echo "Successfully generated 350 ArgoCD Applications in '${APPS_FILE}'"
 echo "Applying ArgoCD Applications to the cluster..."
 kubectl apply -f "${APPS_FILE}" -n argocd
 echo "All done! 350 ArgoCD applications have been applied."
+
+echo "Installing Prometheus Operator..."
+helm install k8s oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack -n monitoring --create-namespace
+
+echo "Applying ArgoCD ServiceMonitors..."
+kubectl apply -f argocd-metrics.yml
