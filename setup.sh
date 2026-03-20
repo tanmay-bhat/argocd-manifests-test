@@ -4,11 +4,17 @@ set -euo pipefail
 CHART_DIR="bulk-resources"
 APPS_DIR="argocd-apps"
 APPS_FILE="${APPS_DIR}/all-apps.yaml"
+REPO_URL="https://github.com/tanmay-bhat/argocd-manifests-test"
+ENABLE_MANIFEST_PATHS="${1:-false}"  # pass "true" as first arg to enable annotation
 
+echo "=== ArgoCD Reconciliation Lab Setup ==="
+echo "manifest-generate-paths annotation: ${ENABLE_MANIFEST_PATHS}"
+echo ""
+
+# --- Helm chart for bulk apps ---
 echo "Creating Helm chart in '${CHART_DIR}'..."
 mkdir -p "${CHART_DIR}/templates"
 
-# Create Chart.yaml
 cat <<EOF > "${CHART_DIR}/Chart.yaml"
 apiVersion: v2
 name: bulk-resources
@@ -18,7 +24,6 @@ version: 0.1.0
 appVersion: "1.0.0"
 EOF
 
-# Create ConfigMap template (generates 10 ConfigMaps)
 cat <<'EOF' > "${CHART_DIR}/templates/configmap.yaml"
 {{- $relName := .Release.Name -}}
 {{- range $i, $e := until 10 }}
@@ -35,7 +40,6 @@ data:
 {{- end }}
 EOF
 
-# Create Secret template (generates 10 Secrets)
 cat <<'EOF' > "${CHART_DIR}/templates/secret.yaml"
 {{- $relName := .Release.Name -}}
 {{- range $i, $e := until 10 }}
@@ -53,13 +57,19 @@ stringData:
 {{- end }}
 EOF
 
-echo "Helm chart created successfully."
+echo "Helm chart created."
 
+# --- Generate 350 bulk ArgoCD Applications ---
 echo "Generating 350 ArgoCD Application manifests..."
 mkdir -p "${APPS_DIR}"
-> "${APPS_FILE}" # Clear file if it exists
+> "${APPS_FILE}"
 
-for i in {1..350}; do
+for i in $(seq 1 350); do
+  ANNOTATION_BLOCK=""
+  if [[ "${ENABLE_MANIFEST_PATHS}" == "true" ]]; then
+    ANNOTATION_BLOCK="    argocd.argoproj.io/manifest-generate-paths: '/${CHART_DIR}'"
+  fi
+
   cat <<EOF >> "${APPS_FILE}"
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -68,10 +78,12 @@ metadata:
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+  annotations:
+${ANNOTATION_BLOCK:-    app: "bulk-app-${i}"}
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/tanmay-bhat/argocd-manifests-test'
+    repoURL: '${REPO_URL}'
     targetRevision: HEAD
     path: ${CHART_DIR}
     helm:
@@ -89,14 +101,52 @@ spec:
 EOF
 done
 
-echo "Successfully generated 350 ArgoCD Applications in '${APPS_FILE}'"
+echo "Generated 350 ArgoCD Applications in '${APPS_FILE}'"
 
+# --- Update individual app manifests (app-1 through app-4) ---
+echo "Updating individual app manifests..."
+for i in 1 2 3 4; do
+  ANNOTATION_BLOCK=""
+  if [[ "${ENABLE_MANIFEST_PATHS}" == "true" ]]; then
+    ANNOTATION_BLOCK="  annotations:
+    argocd.argoproj.io/manifest-generate-paths: '/charts/chart-${i}'"
+  fi
+
+  cat <<EOF > "apps/app-${i}.yaml"
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app-${i}
+  namespace: argocd
+${ANNOTATION_BLOCK}
+spec:
+  project: default
+  source:
+    repoURL: '${REPO_URL}'
+    targetRevision: HEAD
+    path: charts/chart-${i}
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: default
+EOF
+done
+
+echo "Individual apps updated."
+
+# --- Apply everything ---
+echo ""
 echo "Applying ArgoCD Applications to the cluster..."
 kubectl apply -f "${APPS_FILE}" -n argocd
-echo "All done! 350 ArgoCD applications have been applied."
+for i in 1 2 3 4; do
+  kubectl apply -f "apps/app-${i}.yaml" -n argocd
+done
+echo "All done! 354 ArgoCD applications applied."
 
-echo "Installing Prometheus Operator..."
-helm install k8s oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack -n monitoring --create-namespace
+# --- Prometheus + ServiceMonitors ---
+echo ""
+echo "Installing Prometheus Operator (skip if already installed)..."
+helm install k8s oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack \
+  -n monitoring --create-namespace 2>/dev/null || echo "Prometheus stack already installed, skipping."
 
 echo "Applying ArgoCD ServiceMonitors..."
 kubectl apply -f argocd-metrics.yml
