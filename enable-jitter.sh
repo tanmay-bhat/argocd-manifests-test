@@ -14,13 +14,13 @@ echo "=== Enabling app-resync-jitter on ArgoCD application-controller ==="
 
 # Check current args
 echo "Current controller args:"
-kubectl get deploy argocd-application-controller -n argocd \
+kubectl get sts argocd-application-controller -n argocd \
   -o jsonpath='{.spec.template.spec.containers[0].args}' | tr ',' '\n'
 echo ""
 
 # Patch: add --app-resync-jitter=60
 # This spreads the 180s reconciliation across a 60s jitter window (120s-180s)
-kubectl patch deploy argocd-application-controller -n argocd --type='json' \
+kubectl patch sts argocd-application-controller -n argocd --type='json' \
   -p='[
     {
       "op": "add",
@@ -32,5 +32,5 @@ kubectl patch deploy argocd-application-controller -n argocd --type='json' \
 echo ""
 echo "Patched. Controller will restart."
 echo "Waiting for rollout..."
-kubectl rollout status deploy/argocd-application-controller -n argocd --timeout=120s
+kubectl rollout status sts/argocd-application-controller -n argocd --timeout=120s
 echo "Done. Jitter is now active."
