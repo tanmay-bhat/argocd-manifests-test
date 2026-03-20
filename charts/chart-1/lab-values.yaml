@@ -5,3 +5,9 @@ replicaCount: 1
 
 environment: "lab"
 region: "local"
+
+# image-updater simulation
+image:
+  tag: "main-1-1773993359"
+
+# commit 1 at 2026-03-20 13:25:59
