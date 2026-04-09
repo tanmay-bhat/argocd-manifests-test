@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: busybox-sleeper
-  namespace: busybox-test
+  namespace: monitoring
   labels:
     app: busybox-sleeper
 spec:
