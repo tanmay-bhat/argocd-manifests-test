@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: busybox-sleeper
+  namespace: busybox-test
+  labels:
+    app: busybox-sleeper
+spec:
+  containers:
+    - name: busybox
+      image: busybox:1.36
+      command: ["sh", "-c", "sleep 86400"]
+  restartPolicy: Always
